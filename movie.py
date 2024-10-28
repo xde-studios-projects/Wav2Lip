@@ -1,37 +1,31 @@
-from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_audioclips
+from moviepy.editor import VideoFileClip, concatenate_videoclips
 
-# Load the main video
-main_video = VideoFileClip("test.mp4")
 
-# Load the overlay video
-overlay_video = VideoFileClip("results/result_voice.mp4")
+def splice_video_selective_mute(original_path, new_path, splice_time=0.75):
+    # Load the videos
+    original = VideoFileClip(original_path)
+    new_clip = VideoFileClip(new_path)
 
-# Specify the start time for the overlay video
-start_time = 0.3
+    # Get the duration of the new clip
+    new_clip_duration = new_clip.duration
 
-# Resize the overlay video to match the dimensions of the main video
-overlay_video = overlay_video.resize(main_video.size)
+    # Split the original video into three parts:
+    # 1. Before splice point (with audio)
+    # 2. During new clip duration (muted)
+    # 3. After new clip ends (with audio)
+    first_part = original.subclip(0, splice_time)
 
-# Extract the original audio from the main video
-main_audio = main_video.audio
+    # This part will be muted as it would overlap with new clip
+    overlapping_part = original.subclip(splice_time, splice_time + new_clip_duration).without_audio()
 
-# Create a new audio clip that mutes the main audio during the overlay duration
-overlay_duration = overlay_video.duration
+    # The remaining part keeps its audio
+    remaining_part = original.subclip(splice_time + new_clip_duration)
 
-# Get the audio before the overlay
-audio_before_overlay = main_audio.subclip(0, start_time)
+    # Concatenate all parts
+    final_video = concatenate_videoclips([
+        first_part,  # Original video with audio until splice point
+        new_clip.speedx(1.25),  # New video with its audio
+        remaining_part  # Rest of original video with audio
+    ])
 
-# Get the audio after the overlay
-audio_after_overlay = main_audio.subclip(start_time + overlay_duration, main_video.duration)
-
-# Combine audio clips: before overlay and after overlay
-final_audio = concatenate_audioclips([audio_before_overlay, audio_after_overlay])
-
-# Create a composite video
-final_video = CompositeVideoClip([main_video, overlay_video.set_start(start_time)])
-
-# Set the new audio to the final video
-final_video.set_audio(final_audio)
-
-# Write the final video to a new file
-final_video.write_videofile("final_output_video.mp4", codec='libx264', audio_codec='aac')
+    return final_video

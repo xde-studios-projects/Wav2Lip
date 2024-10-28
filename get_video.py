@@ -3,7 +3,7 @@ import subprocess
 import os
 import uuid
 import requests
-from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_audioclips
+from movie import splice_video_selective_mute
 
 # Function to generate audio from text
 def generate_audio(text):
@@ -51,15 +51,23 @@ if st.button("Generate Video"):
         checkpoint_path = "checkpoints/wav2lip_gan.pth"
         face_video = "test.mp4"
         output_file = "results/result_voice.mp4"
+       
 
         # Display loading message
         with st.spinner("Generating video..."):
-            success = run_wav2lip(checkpoint_path, face_video, audio_file, output_file)
-
+            success = run_wav2lip(checkpoint_path, face_video, audio_file, output_file) 
+            
         if success:
-            st.success("Video generated successfully!")
-            st.video(output_file)
-            with open(output_file,'rb') as f:
+            result = f"{name}.mp4"
+            st.success("Video generated from voice successfully!")
+            with st.spinner("Integrating into original video"):
+                final = splice_video_selective_mute("test.mp4", output_file)
+                final.write_videofile(f"{name}.mp4", codec='libx264', audio_codec='aac')
+                final.close()
+            st.success("Done!")
+            st.balloons()    
+            st.video(result)
+            with open(result,'rb') as f:
                 st.download_button(label='Download', data=f, file_name=f'{name}.mp4',mime="application/octet-stream")
             
         else:
